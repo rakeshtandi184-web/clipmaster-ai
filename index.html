@@ -1,0 +1,96 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ClipMaster AI – Automatic Shorts Creator</title>
+  <style>
+    *{box-sizing:border-box}body{margin:0;font-family:Arial,Helvetica,sans-serif;background:#0b1020;color:#f7f8ff;min-height:100vh;display:grid;place-items:center;padding:22px}
+    .card{width:min(680px,100%);background:#151d33;border:1px solid #2a3656;border-radius:22px;padding:28px;box-shadow:0 20px 60px #0006}
+    h1{margin:0 0 8px;font-size:clamp(28px,6vw,40px)}.sub{color:#aebbd7;line-height:1.5;margin:0 0 24px}
+    .drop{border:2px dashed #53678f;border-radius:16px;padding:28px 18px;text-align:center;background:#10182b}
+    .drop strong{display:block;font-size:18px;margin-bottom:8px}.hint{font-size:13px;color:#9eacc9}
+    input{display:none}.btn{display:inline-block;border:0;border-radius:12px;padding:13px 20px;font-weight:700;cursor:pointer;background:#7c5cff;color:white;margin-top:16px}
+    .btn:disabled{opacity:.5;cursor:not-allowed}.file{margin-top:14px;color:#cbd6ef;font-size:14px;overflow-wrap:anywhere}
+    .status{margin-top:18px;padding:13px;border-radius:12px;background:#10182b;color:#cbd6ef;white-space:pre-wrap;line-height:1.45}
+    .results{margin-top:22px}.results h2{font-size:20px}.clip{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px;margin:10px 0;background:#10182b;border-radius:12px;flex-wrap:wrap}
+    a{color:#a99aff}.small{font-size:12px;color:#8797b8;margin-top:20px}
+  </style>
+</head>
+<body>
+  <main class="card">
+    <h1>🎬 ClipMaster AI</h1>
+    <p class="sub">Upload a long video. ClipMaster will find high-motion moments and create vertical 9:16 Shorts automatically.</p>
+    <div class="drop">
+      <strong>Select your long video</strong>
+      <div class="hint">MP4, MOV, MKV or WEBM</div>
+      <label class="btn" for="video">Choose video</label>
+      <input id="video" type="file" accept="video/mp4,video/quicktime,video/x-matroska,video/webm">
+      <div class="file" id="filename">No video selected</div>
+      <button class="btn" id="upload" disabled>✨ Create Shorts</button>
+    </div>
+    <div class="status" id="status" role="status">Ready. Choose a video to begin.</div>
+    <section class="results" id="results" hidden>
+      <h2>Your Shorts</h2>
+      <div id="clips"></div>
+    </section>
+    <p class="small">Note: Current moment selection is based on visual motion, not full semantic understanding of speech or story.</p>
+  </main>
+<script>
+  const API_BASE = "https://clipmaster-ai-t7y8.onrender.com";
+  const input = document.getElementById("video");
+  const upload = document.getElementById("upload");
+  const filename = document.getElementById("filename");
+  const statusBox = document.getElementById("status");
+  const results = document.getElementById("results");
+  const clips = document.getElementById("clips");
+
+  input.addEventListener("change", () => {
+    const file = input.files[0];
+    filename.textContent = file ? file.name : "No video selected";
+    upload.disabled = !file;
+    results.hidden = true;
+    clips.innerHTML = "";
+  });
+
+  upload.addEventListener("click", async () => {
+    const file = input.files[0];
+    if (!file) return;
+    upload.disabled = true;
+    statusBox.textContent = "Uploading video and creating Shorts. This may take a while...";
+    results.hidden = true;
+    const data = new FormData();
+    data.append("file", file);
+    try {
+      const response = await fetch(`${API_BASE}/api/create-shorts`, {
+        method: "POST",
+        body: data
+      });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.detail || `Server error (${response.status})`);
+      clips.innerHTML = "";
+      (payload.shorts || []).forEach((path, i) => {
+        const url = new URL(path, API_BASE).href;
+        const row = document.createElement("div");
+        row.className = "clip";
+        const title = document.createElement("span");
+        title.textContent = `Short ${i + 1}`;
+        const link = document.createElement("a");
+        link.href = url;
+        link.target = "_blank";
+        link.rel = "noopener";
+        link.textContent = "Open / Download MP4";
+        row.append(title, link);
+        clips.appendChild(row);
+      });
+      results.hidden = false;
+      statusBox.textContent = `Done! ${payload.shorts?.length || 0} Shorts created.`;
+    } catch (error) {
+      statusBox.textContent = `Could not create Shorts: ${error.message}`;
+    } finally {
+      upload.disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
